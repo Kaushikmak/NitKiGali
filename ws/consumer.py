@@ -4,10 +4,12 @@ from logservice import LogService
 import sys
 import uuid
 import redis
+import os
 
-# --- Connect to Redis for your Matchmaking Pool ---
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+
 try:
-    redis_client = redis.Redis(host='redis', port=6379, db=2, decode_responses=True)
+    redis_client = redis.from_url(REDIS_URL, db=2, decode_responses=True)
     redis_client.ping()
     print("[Redis] Connected to Redis for matchmaking pool.")
 except Exception as e:

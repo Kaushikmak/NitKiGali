@@ -3,3 +3,5 @@ channels
 channels-redis
 redis
 daphne
+psycopg2-binary
+dj_database_url
