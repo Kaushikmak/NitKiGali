@@ -28,4 +28,4 @@ USER app
 EXPOSE 8000
 
 # Run Daphne.
-# CMD daphne -b 0.0.0.0 -p $PORT nitkigali.asgi:application
+CMD daphne -b 0.0.0.0 -p $PORT nitkigali.asgi:application
