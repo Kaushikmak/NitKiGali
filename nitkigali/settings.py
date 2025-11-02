@@ -17,6 +17,10 @@ if RAILWAY_STATIC_URL:
 
     ALLOWED_HOSTS.append(RAILWAY_STATIC_URL.strip("https://").strip("/"))
 
+VERCEL_DOMAIN = os.environ.get('VERCEL_DOMAIN')
+if VERCEL_DOMAIN:
+    ALLOWED_HOSTS.append(VERCEL_DOMAIN)
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -49,6 +53,8 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+
 
 # --- DATABASE (FOR RAILWAY) ---
 # This reads the DATABASE_URL provided by Railway's PostgreSQL plugin
