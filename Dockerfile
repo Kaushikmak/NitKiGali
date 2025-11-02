@@ -18,9 +18,8 @@ COPY . .
 # Collect static files
 RUN python manage.py collectstatic --noinput || true
 
-# Expose port for Railway
+# Expose port for local testing
 EXPOSE 8000
 
-# Default PORT fallback for local dev
-# ENV PORT=8000
-CMD ["daphne", "-b", "0.0.0.0", "nitkigali.asgi:application"]
+# Start Daphne with dynamic Railway port (or fallback to 8000)
+CMD ["bash", "-c", "daphne -b 0.0.0.0 -p ${PORT:-8000} nitkigali.asgi:application"]
