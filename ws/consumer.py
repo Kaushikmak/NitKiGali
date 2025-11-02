@@ -9,7 +9,7 @@ import os
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
 try:
-    redis_client = redis.from_url(REDIS_URL, db=2, decode_responses=True)
+    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
     redis_client.ping()
     print("[Redis] Connected to Redis for matchmaking pool.")
 except Exception as e:
@@ -19,7 +19,7 @@ except Exception as e:
 WAITING_POOL_KEY = "matchmaking_waiting_pool"
 
 class MatchmakingConsumer(AsyncWebsocketConsumer):
-    # ... (No changes to the rest of this class) ...
+
     async def connect(self):
         self.log = LogService(prefix="Matchmaker")
         self.log.write(f"New user connected to pool: {self.channel_name}", "INFO")
@@ -80,7 +80,7 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(data))
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    # ... (No changes to this class) ...
+
     async def connect(self):
         self.log = LogService(prefix="ChatConsumer")
         self.room_name = self.scope['url_route']['kwargs']['room_name']
