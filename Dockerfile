@@ -22,4 +22,4 @@ RUN python manage.py collectstatic --noinput || true
 EXPOSE 8000
 
 # Start Daphne with dynamic Railway port (or fallback to 8000)
-CMD ["bash", "-c", "daphne -b 0.0.0.0 -p ${PORT:-8000} nitkigali.asgi:application"]
+CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT:-8000} nitkigali.asgi:application"]
