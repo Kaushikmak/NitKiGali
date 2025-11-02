@@ -1,31 +1,28 @@
-# Use an official Python runtime as a parent image
+# Use official Python image
 FROM python:3.12-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Environment settings
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# Create a non-root user
-RUN addgroup --system app && adduser --system --group app
-
-# Set the working directory in the container
+# Create working directory
 WORKDIR /app
 
 # Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the project code as the 'app' user
-COPY --chown=app:app . .
+# Copy project files
+COPY . .
 
-# Collect static files
-RUN python manage.py collectstatic --no-input
+# Collect static files (optional)
+RUN python manage.py collectstatic --noinput || true
 
-# Switch to the non-root user
-USER app
-
-# Expose the port Daphne will run on
+# Expose the default port
 EXPOSE 8000
 
-# Run Daphne.
-CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT:-8000} nitkigali.asgi:application"]
+# Default port fallback (in case $PORT not set)
+ENV PORT=8000
+
+# Run Daphne directly
+CMD ["sh", "-c", "daphne -b 0.0.0.0 -p $PORT nitkigali.asgi:application"]
