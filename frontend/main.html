@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Django Channels Chat</title>
+    <!-- 1. Include Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Simple scrollbar for chat log */
+        #chat-log::-webkit-scrollbar { width: 4px; }
+        #chat-log::-webkit-scrollbar-track { background: #f1f1f1; }
+        #chat-log::-webkit-scrollbar-thumb { background: #888; border-radius: 2px; }
+        #chat-log::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="container mx-auto max-w-lg mt-10 p-6 bg-white rounded-lg shadow-xl">
+
+        <!-- 
+          STATE 1: Start Button
+          This is shown first. It's hidden after you click it.
+        -->
+        <div id="start-container" class="text-center">
+            <h1 class="text-2xl font-semibold mb-4">Chat Roulette</h1>
+            <p class="text-gray-600 mb-6">Click the button to find a random chat partner.</p>
+            <button id="find-chat-button" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition duration-200">
+                Find Chat
+            </button>
+        </div>
+
+        <!-- 
+          STATE 2: Waiting Status
+          This is shown after you click "Find Chat". It's hidden when a match is found.
+        -->
+        <div id="status-container" class="text-center hidden">
+            <h2 class="text-xl font-semibold text-gray-700">Connecting...</h2>
+            <!-- Simple spinner -->
+            <div class="flex justify-center items-center my-6">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+            <p id="status-message" class="text-gray-600">Waiting for a partner...</p>
+        </div>
+        
+        <!-- 
+          STATE 3: Chat Room
+          This is hidden by default and shown when a match is found.
+        -->
+        <div id="chat-container" class="hidden">
+            <h1 class="text-2xl font-semibold mb-4 text-center">Chat Room</h1>
+            
+            <!-- Message Display Area -->
+            <div id="chat-log" class="h-80 overflow-y-auto bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
+                <!-- Messages will be appended here -->
+            </div>
+            
+            <!-- Message Input Area -->
+            <div class="flex space-x-2">
+                <input id="chat-message-input" type="text" placeholder="Type a message..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="chat-message-submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                    Send
+                </button>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        // --- Get DOM Elements ---
+        const findChatButton = document.getElementById('find-chat-button');
+        const startContainer = document.getElementById('start-container');
+        const statusContainer = document.getElementById('status-container');
+        const statusMessage = document.getElementById('status-message');
+        const chatContainer = document.getElementById('chat-container');
+        const chatLog = document.getElementById('chat-log');
+        const chatMessageInput = document.getElementById('chat-message-input');
+        const chatMessageSubmit = document.getElementById('chat-message-submit');
+
+        // Store the active WebSocket connection
+        let matchmakingSocket = null;
+        let chatSocket = null;
+        
+        // --- WebSocket Host ---
+        // Assumes your server is running on localhost:8000
+        const wsHost = 'ws://localhost:8000';
+
+        // --- Utility to log messages to the chat box ---
+        function logMessage(message, source = 'system') {
+            const p = document.createElement('p');
+            
+            if (source === 'user') {
+                p.className = 'text-right text-blue-600 mb-1';
+                p.textContent = `You: ${message}`;
+            } else if (source === 'partner') {
+                p.className = 'text-left text-gray-700 mb-1';
+                p.textContent = `Partner: ${message}`;
+            } else {
+                // System message (e.g., connected, partner left)
+                p.className = 'text-center text-sm text-gray-500 italic my-2';
+                p.textContent = message;
+            }
+            
+            chatLog.appendChild(p);
+            // Auto-scroll to the bottom
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        // --- 1. Connect to Matchmaker ---
+        findChatButton.onclick = function() {
+            // Show the "waiting" UI
+            startContainer.classList.add('hidden');
+            statusContainer.classList.remove('hidden');
+
+            // Create the matchmaking socket
+            matchmakingSocket = new WebSocket(wsHost + '/ws/find_chat/');
+
+            matchmakingSocket.onopen = function(e) {
+                console.log('Matchmaking WebSocket connected.');
+            };
+
+            matchmakingSocket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                
+                if (data.status === 'waiting') {
+                    console.log('Waiting for partner...');
+                    statusMessage.textContent = 'Waiting for a partner...';
+                }
+                
+                if (data.type === 'redirect') {
+                    // Match found!
+                    const roomName = data.room_name;
+                    console.log('Match found! Redirecting to room: ' + roomName);
+
+                    // Close this socket
+                    matchmakingSocket.close();
+                    
+                    // Connect to the new chat room
+                    connectToChatRoom(roomName);
+                }
+            };
+
+            matchmakingSocket.onclose = function(e) {
+                console.log('Matchmaking socket closed.');
+            };
+
+            matchmakingSocket.onerror = function(e) {
+                console.error('Matchmaking socket error:', e);
+                statusMessage.textContent = 'Error connecting. Please refresh.';
+                statusMessage.classList.add('text-red-500');
+            };
+        };
+
+        // --- 2. Connect to Chat Room ---
+        function connectToChatRoom(roomName) {
+            // Show the chat UI
+            statusContainer.classList.add('hidden');
+            chatContainer.classList.remove('hidden');
+
+            chatSocket = new WebSocket(
+                wsHost + '/ws/chat/' + roomName + '/'
+            );
+
+            chatSocket.onopen = function(e) {
+                console.log('Chat WebSocket connected.');
+                logMessage('You are connected.', 'system');
+            };
+
+            chatSocket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                console.log('Chat message received:', data.message);
+                logMessage(data.message, 'partner');
+            };
+
+            chatSocket.onclose = function(e) {
+                console.log('Chat socket closed.');
+                logMessage('Connection closed.', 'system');
+                chatMessageSubmit.disabled = true;
+                chatMessageInput.disabled = true;
+                chatMessageInput.placeholder = 'Disconnected';
+            };
+        }
+        
+        // --- 3. Send a Chat Message ---
+        chatMessageSubmit.onclick = function(e) {
+            const message = chatMessageInput.value;
+            if (message.trim() === '') return;
+
+            if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                // Send the message in the required JSON format
+                chatSocket.send(JSON.stringify({
+                    'message': message
+                }));
+                
+                // Log our own message locally
+                logMessage(message, 'user');
+                
+                // Clear the input
+                chatMessageInput.value = '';
+            }
+        };
+
+        // Also send on "Enter" key press
+        chatMessageInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                chatMessageSubmit.click();
+            }
+        });
+
+    </script>
+</body>
+</html>
