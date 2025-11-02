@@ -23,6 +23,4 @@ EXPOSE 8000
 
 # Default PORT fallback for local dev
 ENV PORT=8000
-
-# Start Daphne — use shell expansion so Railway's $PORT works
-CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT} nitkigali.asgi:application"]
+CMD sh -c "daphne -b 0.0.0.0 -p ${PORT} nitkigali.asgi:application"
