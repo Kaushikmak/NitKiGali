@@ -21,6 +21,16 @@ VERCEL_DOMAIN = os.environ.get('VERCEL_DOMAIN')
 if VERCEL_DOMAIN:
     ALLOWED_HOSTS.append(VERCEL_DOMAIN)
 
+CSRF_TRUSTED_ORIGINS = []
+
+# Add the Railway domain
+if RAILWAY_STATIC_URL:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RAILWAY_STATIC_URL.strip('https://').strip('/')}")
+
+# Add the Vercel domain
+if VERCEL_DOMAIN:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{VERCEL_DOMAIN}")
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
