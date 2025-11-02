@@ -15,15 +15,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-# Make start script executable
-COPY start.sh .
-RUN chmod +x start.sh
-
 # Collect static files
 RUN python manage.py collectstatic --noinput || true
 
-# Expose port for local testing
+# Expose port - Railway will detect this
 EXPOSE 8000
 
-# Start using the script
-CMD ["./start.sh"]
+# Start Daphne
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "nitkigali.asgi:application"]
