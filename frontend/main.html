@@ -20,7 +20,6 @@
 
         <!-- 
           STATE 1: Start Button
-          This is shown first. It's hidden after you click it.
         -->
         <div id="start-container" class="text-center">
             <h1 class="text-2xl font-semibold mb-4">Chat Roulette</h1>
@@ -32,7 +31,6 @@
 
         <!-- 
           STATE 2: Waiting Status
-          This is shown after you click "Find Chat". It's hidden when a match is found.
         -->
         <div id="status-container" class="text-center hidden">
             <h2 class="text-xl font-semibold text-gray-700">Connecting...</h2>
@@ -41,14 +39,29 @@
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
             <p id="status-message" class="text-gray-600">Waiting for a partner...</p>
+            
+            <!-- NEW: Quit button for waiting -->
+            <button id="quit-waiting-button" class="mt-4 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                Quit
+            </button>
         </div>
         
         <!-- 
           STATE 3: Chat Room
-          This is hidden by default and shown when a match is found.
         -->
         <div id="chat-container" class="hidden">
-            <h1 class="text-2xl font-semibold mb-4 text-center">Chat Room</h1>
+            <!-- NEW: Header with Skip/Quit buttons -->
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-2xl font-semibold">Chat Room</h1>
+                <div class="space-x-2">
+                    <button id="skip-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                        Skip
+                    </button>
+                    <button id="quit-chat-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                        Quit
+                    </button>
+                </div>
+            </div>
             
             <!-- Message Display Area -->
             <div id="chat-log" class="h-80 overflow-y-auto bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
@@ -68,21 +81,25 @@
 
     <script>
         // --- Get DOM Elements ---
-        const findChatButton = document.getElementById('find-chat-button');
         const startContainer = document.getElementById('start-container');
+        const findChatButton = document.getElementById('find-chat-button');
+        
         const statusContainer = document.getElementById('status-container');
         const statusMessage = document.getElementById('status-message');
+        const quitWaitingButton = document.getElementById('quit-waiting-button');
+
         const chatContainer = document.getElementById('chat-container');
         const chatLog = document.getElementById('chat-log');
         const chatMessageInput = document.getElementById('chat-message-input');
         const chatMessageSubmit = document.getElementById('chat-message-submit');
+        const skipButton = document.getElementById('skip-button');
+        const quitChatButton = document.getElementById('quit-chat-button');
 
         // Store the active WebSocket connection
         let matchmakingSocket = null;
         let chatSocket = null;
         
         // --- WebSocket Host ---
-        // Assumes your server is running on localhost:8000
         const wsHost = 'ws://localhost:8000';
 
         // --- Utility to log messages to the chat box ---
@@ -96,21 +113,60 @@
                 p.className = 'text-left text-gray-700 mb-1';
                 p.textContent = `Partner: ${message}`;
             } else {
-                // System message (e.g., connected, partner left)
                 p.className = 'text-center text-sm text-gray-500 italic my-2';
                 p.textContent = message;
             }
             
             chatLog.appendChild(p);
-            // Auto-scroll to the bottom
             chatLog.scrollTop = chatLog.scrollHeight;
         }
 
+        // --- Resets the UI to the initial state ---
+        function resetToStartScreen() {
+            // Hide other containers
+            statusContainer.classList.add('hidden');
+            chatContainer.classList.add('hidden');
+            
+            // Show start container
+            startContainer.classList.remove('hidden');
+
+            // Clear chat log
+            chatLog.innerHTML = '';
+            
+            // Reset message input
+            chatMessageInput.value = '';
+            chatMessageInput.disabled = false;
+            chatMessageInput.placeholder = 'Type a message...';
+            chatMessageSubmit.disabled = false;
+
+            // Reset status message
+            statusMessage.textContent = 'Waiting for a partner...';
+            statusMessage.classList.remove('text-red-500');
+        }
+
+        // --- Closes all active sockets ---
+        function closeAllSockets() {
+            if (matchmakingSocket) {
+                matchmakingSocket.onclose = null; // Prevent old handlers from firing
+                matchmakingSocket.close();
+                matchmakingSocket = null;
+            }
+            if (chatSocket) {
+                chatSocket.onclose = null; // Prevent old handlers from firing
+                chatSocket.close();
+                chatSocket = null;
+            }
+        }
+
         // --- 1. Connect to Matchmaker ---
-        findChatButton.onclick = function() {
+        function startMatchmaking() {
             // Show the "waiting" UI
             startContainer.classList.add('hidden');
+            chatContainer.classList.add('hidden');
             statusContainer.classList.remove('hidden');
+            
+            // Clean up any old sockets
+            closeAllSockets();
 
             // Create the matchmaking socket
             matchmakingSocket = new WebSocket(wsHost + '/ws/find_chat/');
@@ -128,12 +184,14 @@
                 }
                 
                 if (data.type === 'redirect') {
-                    // Match found!
                     const roomName = data.room_name;
                     console.log('Match found! Redirecting to room: ' + roomName);
 
                     // Close this socket
-                    matchmakingSocket.close();
+                    if(matchmakingSocket) {
+                        matchmakingSocket.close();
+                        matchmakingSocket = null; // Clear it
+                    }
                     
                     // Connect to the new chat room
                     connectToChatRoom(roomName);
@@ -149,13 +207,22 @@
                 statusMessage.textContent = 'Error connecting. Please refresh.';
                 statusMessage.classList.add('text-red-500');
             };
-        };
+        }
 
         // --- 2. Connect to Chat Room ---
         function connectToChatRoom(roomName) {
             // Show the chat UI
             statusContainer.classList.add('hidden');
             chatContainer.classList.remove('hidden');
+
+            // --- BUG FIX ---
+            // Reset UI for the new chat room
+            chatLog.innerHTML = ''; // Clear the log
+            chatMessageInput.value = ''; // Clear old text
+            chatMessageInput.disabled = false; // Re-enable input
+            chatMessageSubmit.disabled = false; // Re-enable send button
+            chatMessageInput.placeholder = 'Type a message...';
+            // --- END FIX ---
 
             chatSocket = new WebSocket(
                 wsHost + '/ws/chat/' + roomName + '/'
@@ -169,44 +236,90 @@
             chatSocket.onmessage = function(e) {
                 const data = JSON.parse(e.data);
                 console.log('Chat message received:', data.message);
-                logMessage(data.message, 'partner');
+                
+                // Don't show our own "joined" message
+                if (data.message === '[Partner has joined the chat]' && chatLog.childElementCount > 1) {
+                    logMessage(data.message, 'system');
+                } else if (data.message !== '[Partner has joined the chat]') {
+                    logMessage(data.message, 'partner');
+                }
             };
 
             chatSocket.onclose = function(e) {
                 console.log('Chat socket closed.');
+                
+                // Check if this onclose is for the *current* socket
+                // If chatSocket is null, it means we already closed it (e.g., via Skip)
+                // and this is a late event from an old socket.
+                if (chatSocket === null) {
+                    console.log('Stale onclose event ignored.');
+                    return;
+                }
+
                 logMessage('Connection closed.', 'system');
                 chatMessageSubmit.disabled = true;
                 chatMessageInput.disabled = true;
                 chatMessageInput.placeholder = 'Disconnected';
             };
+
+            chatSocket.onerror = function(e) {
+                console.error('Chat socket error:', e);
+                logMessage('Connection error.', 'system');
+            };
         }
         
         // --- 3. Send a Chat Message ---
-        chatMessageSubmit.onclick = function(e) {
+        function sendChatMessage() {
             const message = chatMessageInput.value;
             if (message.trim() === '') return;
 
             if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                // Send the message in the required JSON format
                 chatSocket.send(JSON.stringify({
                     'message': message
                 }));
-                
-                // Log our own message locally
                 logMessage(message, 'user');
-                
-                // Clear the input
                 chatMessageInput.value = '';
             }
-        };
+        }
 
-        // Also send on "Enter" key press
+        // --- EVENT LISTENERS ---
+
+        // Start button
+        findChatButton.onclick = startMatchmaking;
+
+        // Send button
+        chatMessageSubmit.onclick = sendChatMessage;
+
+        // Send on "Enter" key
         chatMessageInput.addEventListener('keyup', function(e) {
             if (e.key === 'Enter') {
-                chatMessageSubmit.click();
+                sendChatMessage();
             }
         });
+
+        // Skip button (in chat)
+        skipButton.onclick = function() {
+            logMessage('You skipped the chat.', 'system');
+            console.log('Skip button clicked. Finding new chat.');
+            // Go back to waiting pool
+            startMatchmaking(); 
+        };
+
+        // Quit button (in chat)
+        quitChatButton.onclick = function() {
+            console.log('Quit button clicked. Closing sockets.');
+            closeAllSockets();
+            resetToStartScreen();
+        };
+
+        // Quit button (while waiting)
+        quitWaitingButton.onclick = function() {
+            console.log('Quit (waiting) button clicked. Closing sockets.');
+            closeAllSockets();
+            resetToStartScreen();
+        };
 
     </script>
 </body>
 </html>
+

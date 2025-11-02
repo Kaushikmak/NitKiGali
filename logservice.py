@@ -10,7 +10,8 @@ class LogService:
         if not os.path.exists(log_dir):
             try:
                 os.makedirs(log_dir)
-                print(f"[LogService] Created log directory: {log_dir}")
+                # This print is noisy in production, let's remove it.
+                # print(f"[LogService] Created log directory: {log_dir}")
             except Exception as e:
                 print(f"[LogService] ERROR: Could not create log directory: {e}")
 
@@ -21,6 +22,7 @@ class LogService:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         line = f"[{timestamp}] [{type.upper()}] {message}\n"
         
+        # This print is good for Docker, as it sends logs to stdout
         print(line, end='') 
 
         self.file.write(line)
