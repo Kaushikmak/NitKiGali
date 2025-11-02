@@ -11,25 +11,19 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
 
-ALLOWED_HOSTS = []
-RAILWAY_STATIC_URL = os.environ.get('RAILWAY_STATIC_URL')
-if RAILWAY_STATIC_URL:
+ALLOWED_HOSTS_STRING = os.environ.get('DJANGO_ALLOWED_HOSTS')
+if ALLOWED_HOSTS_STRING:
 
-    ALLOWED_HOSTS.append(RAILWAY_STATIC_URL.strip("https://").strip("/"))
+    ALLOWED_HOSTS = ALLOWED_HOSTS_STRING.split(',')
+else:
+    ALLOWED_HOSTS = []
 
-VERCEL_DOMAIN = os.environ.get('VERCEL_DOMAIN')
-if VERCEL_DOMAIN:
-    ALLOWED_HOSTS.append(VERCEL_DOMAIN)
 
-CSRF_TRUSTED_ORIGINS = []
-
-# Add the Railway domain
-if RAILWAY_STATIC_URL:
-    CSRF_TRUSTED_ORIGINS.append(f"https://{RAILWAY_STATIC_URL.strip('https://').strip('/')}")
-
-# Add the Vercel domain
-if VERCEL_DOMAIN:
-    CSRF_TRUSTED_ORIGINS.append(f"https://{VERCEL_DOMAIN}")
+CSRF_TRUSTED_ORIGINS_STRING = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS')
+if CSRF_TRUSTED_ORIGINS_STRING:
+    CSRF_TRUSTED_ORIGINS = CSRF_TRUSTED_ORIGINS_STRING.split(',')
+else:
+    CSRF_TRUSTED_ORIGINS = []
 
 
 INSTALLED_APPS = [
