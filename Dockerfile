@@ -22,5 +22,5 @@ RUN python manage.py collectstatic --noinput || true
 EXPOSE 8000
 
 # Default PORT fallback for local dev
-ENV PORT=8000
-CMD sh -c "daphne -b 0.0.0.0 -p ${PORT} nitkigali.asgi:application"
+# ENV PORT=8000
+CMD ["daphne", "-b", "0.0.0.0", "nitkigali.asgi:application"]
