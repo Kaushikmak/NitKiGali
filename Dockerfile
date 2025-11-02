@@ -15,14 +15,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-# Collect static files (optional)
+# Collect static files
 RUN python manage.py collectstatic --noinput || true
 
-# Expose the default port
+# Expose port for Railway
 EXPOSE 8000
 
-# Default port fallback (in case $PORT not set)
+# Default PORT fallback for local dev
 ENV PORT=8000
 
-# Run Daphne directly
-CMD ["sh", "-c", "daphne -b 0.0.0.0 -p $PORT nitkigali.asgi:application"]
+# Start Daphne — use shell expansion so Railway's $PORT works
+CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT} nitkigali.asgi:application"]
