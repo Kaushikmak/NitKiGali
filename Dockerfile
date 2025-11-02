@@ -28,5 +28,4 @@ USER app
 EXPOSE 8000
 
 # Run Daphne.
-CMD sh -c "daphne -b 0.0.0.0 -p ${PORT:-8000} nitkigali.asgi:application"
-
+CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT:-8000} nitkigali.asgi:application"]
